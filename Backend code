@@ -1,0 +1,61 @@
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+users = [
+    {
+        "id": 1,
+        "name": "Meet",
+        "hobbies": [
+            "Music",
+            "Chess",
+            "Drawing"
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Pari Singh",
+        "hobbies": [
+            "Music",
+            "Cooking",
+            "Reading"
+        ]
+    },
+    {
+        "id": 3,
+        "name": "Naina Patel",
+        "hobbies": [
+            "Music",
+            "Chess",
+            "Dance"
+        ]
+    },
+    {
+        "id": 4,
+        "name": "Amy Bhatt",
+        "hobbies": [
+            "Cooking"
+        ]
+    }
+]
+
+@app.route("/match/<int:user_id>")
+def get_potential_matches(user_id):
+    user = next((u for u in users if u["id"] == user_id), None)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    
+    matches = []
+    for u in users:
+        if u["id"] == user_id:
+            continue  # Skip the same user
+        
+        common_hobbies = len(set(user["hobbies"]) & set(u["hobbies"]))
+        u["compatibility"] = common_hobbies
+        matches.append(u)
+    
+    matches.sort(key=lambda x: x["compatibility"], reverse=True)
+    return jsonify(matches)
+
+if __name__ == "__main__":
+    app.run()
