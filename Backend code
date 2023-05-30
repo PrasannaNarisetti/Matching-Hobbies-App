@@ -1,61 +1,56 @@
-from flask import Flask, jsonify
+# Create a new Django project
+django-admin startproject dating_app
 
-app = Flask(__name__)
+# Create a new Django app within the project
+cd dating_app
+python manage.py startapp matches
+# matches/models.py
+from django.db import models
 
-users = [
-    {
-        "id": 1,
-        "name": "Meet",
-        "hobbies": [
-            "Music",
-            "Chess",
-            "Drawing"
-        ]
-    },
-    {
-        "id": 2,
-        "name": "Pari Singh",
-        "hobbies": [
-            "Music",
-            "Cooking",
-            "Reading"
-        ]
-    },
-    {
-        "id": 3,
-        "name": "Naina Patel",
-        "hobbies": [
-            "Music",
-            "Chess",
-            "Dance"
-        ]
-    },
-    {
-        "id": 4,
-        "name": "Amy Bhatt",
-        "hobbies": [
-            "Cooking"
-        ]
-    }
+class User(models.Model):
+    name = models.CharField(max_length=255)
+    hobbies = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+# matches/views.py
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views import View
+from .models import User
+
+class PotentialMatchesView(View):
+    def get(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)
+        matches = User.objects.exclude(id=user_id).all()
+
+        potential_matches = []
+        for match in matches:
+            common_hobbies = set(user.hobbies.split(",")) & set(match.hobbies.split(","))
+            match.compatibility = len(common_hobbies)
+            potential_matches.append(match)
+
+        potential_matches = sorted(potential_matches, key=lambda x: x.compatibility, reverse=True)
+
+        response = []
+        for match in potential_matches:
+            response.append({
+                "id": match.id,
+                "name": match.name,
+                "hobbies": match.hobbies.split(","),
+                "compatibility": match.compatibility
+            })
+
+        return JsonResponse(response, safe=False)
+# dating_app/urls.py
+from django.urls import path
+from matches.views import PotentialMatchesView
+
+urlpatterns = [
+    path('match/<int:user_id>/', PotentialMatchesView.as_view(), name='potential-matches'),
 ]
+python manage.py makemigrations
+python manage.py migrate
+python manage.py runserver
 
-@app.route("/match/<int:user_id>")
-def get_potential_matches(user_id):
-    user = next((u for u in users if u["id"] == user_id), None)
-    if not user:
-        return jsonify({"message": "User not found"}), 404
-    
-    matches = []
-    for u in users:
-        if u["id"] == user_id:
-            continue  # Skip the same user
-        
-        common_hobbies = len(set(user["hobbies"]) & set(u["hobbies"]))
-        u["compatibility"] = common_hobbies
-        matches.append(u)
-    
-    matches.sort(key=lambda x: x["compatibility"], reverse=True)
-    return jsonify(matches)
-
-if __name__ == "__main__":
-    app.run()
